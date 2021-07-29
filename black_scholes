@@ -1,0 +1,24 @@
+import numpy as np
+import sdeint
+from scipy.stats import norm
+
+# Setup Parameters
+N_mc = 5000# Number of simulations
+N = 500 # Number of timesteps in each trajectory
+T = 1 # maturity time
+S_0,r,sigma,mu, K = 100, 0.02, 0.2, 0.05, 95 
+
+'''Black Scholes model test bed
+'''
+def d1(S,K,T,r,sigma): #density of normal
+    return (np.log(S/K)+(r+sigma**2/2)*T)/sigma* np.sqrt(T)
+def d2(S,K,T,r,sigma):
+    return d1(S,K,T,r,sigma)-sigma* np.sqrt(T)
+
+def black_scholes_calc(S_0,K,T,r,sigma):
+    BSM_price = S_0 * norm.cdf(d1(S_0,K,T,r,sigma)) - K*np.exp(-r*T) * norm.cdf(d2(S_0,K,T,r,sigma))
+    BSM_delta = np.exp(-r*T)* norm.cdf(d1(S_0,K,T,r,sigma))
+ 
+    return BSM_price, BSM_delta
+
+BSM_price, BSM_delta = black_scholes_calc(S_0,K,T,r,sigma)
