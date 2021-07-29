@@ -1,4 +1,7 @@
 /.ipynb_checkpoints/
-.pyc
-.pdf
-
+*.pyc
+*.pdf
+*.txt
+report.log
+/sdeint
+/sde_simulation
