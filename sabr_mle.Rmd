@@ -1,0 +1,199 @@
+---
+title: "Heston & SABR"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+[Link to reference used in this notebook](https://qfinatwork.com/public/qfin/files/Stefano_Iacus.pdf)
+Saved in files "YUIMA_Stefano_Iacus.pdf"
+```{r}
+library(yuima)
+```
+### 1D Unparametrised SDE
+A simple 1D SDE model for starters with numerical coefficients: 
+ $dX_t = -3X_t dt + \frac{1}{1+X_t^2}$
+```{r}
+mod1 <- setModel(drift = "-3*x", diffusion = "1/(1+x^2)")
+set.seed(123)
+X <- simulate(mod1)
+plot(X)
+```
+Spit out all of the YUIMA model details... (there's a lot so commented it out)
+```{r}
+#str(X)
+```
+Summary of X:
+```{r echo=TRUE}
+X
+```
+### Parametrised model
+This time the model has parameters, $\theta$ and $\gamma$:
+$dX_t = -\theta X_t dt  + \frac{1}{1+X_t^\gamma} dW_t$
+
+```{r echo=TRUE, warning=FALSE}
+mod2 <- setModel(drift = "-theta*x", diffusion = "1/(1+x^gamma)")
+mod2
+
+set.seed(123)
+plot(simulate(mod2,true.parameter =list(theta=1,gamma=3)))
+```
+
+### Parametrised 1D SDE model, with QMLE
+So we want to recover our parameter estimates from their true values.
+$dX_t = -\theta_2X_t dt + \theta_1dW_t$
+
+```{r}
+diff.matrix <- matrix(c("theta1"), 1, 1) #so apparently dots are ok in names in R... weird.
+ymodel <- setModel(drift = c("(-1)*theta2*x"), diffusion = diff.matrix, time.variable = "t", state.variable = "x", solve.variable = "x")
+# here you can do plot(simulate(ymodel,true.parameter =list(theta=0.3,gamma=0.1))) to show specific paths at given input params.
+# ...this is where the qMLE things specific begin...
+n <-100
+ysamp <- setSampling(Terminal = (n)^(1/3), n = n) #this expression seems rather arbitrary, 100^1/3 = 4.6?!
+yuima <- setYuima(model = ymodel, sampling = ysamp) #yuima - name of package or a variable now?
+set.seed(123)
+#True values of parameters specified for simulation here, but stay unknown to yuima object?
+yuima <- simulate(yuima, xinit = 1, true.parameter = list(theta1 = 0.3, theta2 = 0.1))
+# now call qmle on yuima object
+mle1 <- qmle(yuima, start = list(theta1 = 0.8, theta2 = 0.7), lower = list(theta1=0.05, theta2=0.05), upper = list(theta1=0.5, theta2=0.5), method = "L-BFGS-B")
+#print result - can also use just coef(mle1)
+summary(mle1)
+```
+So we got 0.3 which is pretty close, and 0.28 which is not, but it *is* within the standard error.
+
+
+### 2D parametric Model with qMLE (2-dimensional diffusions with 3 noises)
+$dX_t^{(1)} = -\theta_2X_t^{(1)}*dt + dW_t^{(1)} + X_t^{(2)}*dW_t^{(3)}$
+$dX_t^{(2)} = -(X_t^1 + \theta_1 X_t^{(2)})dt + X_t^1dW_t^{(1)} + \theta_2dW_t^{(2)}$
+
+```{r echo=TRUE}
+sol <- c("x1","x2") # variable for numerical solution 
+drifts <- c("-theta2*x1","-x1 - theta1*x2") # drift vectors 
+diffs <- matrix(c("1","x1","0","theta2","x2","0"),2,3) # diffusion matrix 
+mod3 <- setModel(drift = drifts, diffusion = diffs, solve.variable = sol,time.variable="t", state.variable = sol)
+#plotting for 2D on one plot slightly different:
+plot(simulate(mod3, true.parameter = list(theta1=2, theta2=3)), plot.type="single", col=c("red","blue"))
+```
+My main concern here is that I *havent* specified any kind of correlation. This is just two independent processes working away???
+
+```{r}
+n <- 100 
+mod3samp <- setSampling(Terminal = (n)^(1/3),n = n) 
+mod3yuima <- setYuima(model=mod3, sampling = mod3samp) 
+set.seed(123)
+mod3yuima <- simulate(mod3yuima, xinit=1, true.parameter = list(theta1 = 2,theta2 = 3)) # X is a yuima object
+# plot(X,plot.type="single",col=c("red","blue")) 
+mle_mod3 <-qmle(mod3yuima, start = list(theta1 = 1.0, theta2 = 1.0),lower = list(theta1=0.05, theta2=0.05), upper = list(theta1=4, theta2=6))
+summary(mle_mod3)
+```
+Why have I got a third parameter? Why is there two theta2?!?!? 
+
+### Heston from the YUIMA book (it has correlation done properly)
+$dX_t^{(1)} = \mu X_t^{(1)}dt + \sqrt{X_t^{(2)}}X_t^{(1)}dW_t^{(1)}$
+$dX_t^{(2)} = k(\theta - X_t^{(2)})dt + \epsilon\sqrt{X_t^{(2)}}dW_t^{(2)}$
+where the brownians are correlated by some $\rho$ and lets say that we want to use two independent brownians $B_t^{(1)}$ and $B_t^{(2)}$
+In order to do this, we need to transform them Cholesky decomposition (Colin, I used a package here!).
+
+The joint distribution of these things (Y) wants to be bivariate normal with correlation matrix $\Sigma$ s.t. $Y\sim N(0,\Sigma)$. So we use Cholesky to find such a matrix that $A^TA=\Sigma$. Then if Z is the standard multivariate normal, then $AZ \sim N(0,\Sigma)$ in the same way as we change brownians to be $\sqrt{dt}.N(0,1)$ all the time. So if we take the correlation matrix, and get the Cholesky decomp of it to get A, we can transform (multiply in normal speak!) the original diffusion matrix so that it works with independent Brownians.
+
+So the matrix form of the model as it stands is BLAH.
+```{r}
+rho = 0.7
+Sigma <- matrix(c(1.0, rho, rho, 1.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
+A <- chol(Sigma) # the decomposition
+A
+```
+```{r}
+crossprod(A) # check to see if we get our input back
+```
+So now we rewrite, but multiply the diffusions by the matrix A... 
+```{r}
+set.seed(123)
+drift_heston <- c("mu*x1", "kappa*(theta-x2)")
+diff_heston <- matrix(c("c11*sqrt(x2)*x1", "0", "c12*sqrt(x2)*x1", "c22*epsilon*sqrt(x2)"),2,2)
+heston <- setModel(drift=drift, diffusion=diffusion, state.var=c("x1","x2"))
+X_heston <- simulate(heston, true.par=list(theta=0.5, mu=1.2, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(100,0.5))
+plot(X_heston) #,plot.type="single", col=c("red","blue") <- add this for a laugh
+```
+Now the QMLE bit...
+```{r}
+n <- 750
+heston_samp <- setSampling(Terminal = n^(1/3), n=n)
+yuima_heston <- setYuima(model=heston, sampling = heston_samp)
+set.seed(123)
+yuima_heston <- simulate(heston, true.parameter = list(theta=0.5, mu=1.2, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2]))
+param.init <- list(theta=0.5, mu=1.2, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2])
+# +- 1%
+low.par <- list(theta=0.0, mu=0, kappa=0,epsilon=0, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
+upp.par <- list(theta=2, mu=3, kappa=5,epsilon=1, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
+mle_heston <- qmle(yuima_heston, start = param.init, lower = low.par, upper = upp.par)
+summary(mle_heston)
+```
+
+```{r}
+logLik(mle_heston)
+```
+
+Well that's hilarious. c22 is a bit off?? The c12 shows the correlation coefficient well, c11 hasnt changed. The parameters it gives are just the initial starting values for some reason?????? How do I know its actually doing anything with the parameter values I give it?
+
+### SABR...putting it all together
+
+$dX_t^{(1)} = X_t^{(2)} X_t^{(1)\beta}dW_t^{(1)}$
+$dX_t^{(2)} = \theta_1 X_t^{(2)}dW_t^{(2)}$
+where the brownians are correlated by some $\rho$ and lets say that we want to use two independent brownians $B_t^{(1)}$ and $B_t^{(2)}$
+In order to do this, we need to transform them Cholesky decomposition (Colin, I used a package here!).
+
+The joint distribution of these things (Y) wants to be bivariate normal with correlation matrix $\Sigma$ s.t. $Y\sim N(0,\Sigma)$. So we use Cholesky to find such a matrix that $A^TA=\Sigma$. Then if Z is the standard multivariate normal, then $AZ \sim N(0,\Sigma)$ in the same way as we change brownians to be $\sqrt{dt}.N(0,1)$ all the time. So if we take the correlation matrix, and get the Cholesky decomp of it to get A, we can transform (multiply in normal speak!) the original diffusion matrix so that it works with independent Brownians.
+
+So the matrix form of the model as it stands is BLAH.
+```{r}
+rho = 0.7
+Sigma <- matrix(c(1.0, rho, rho, 1.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
+A <- chol(Sigma) # the decomposition
+A
+```
+```{r}
+crossprod(A) # check to see if we get our input back
+```
+```{r}
+set.seed(123)
+drift_sabr <- c("0", "0")
+diff_sabr <- matrix(c("x2*x1^beta*c11", "0", "x2*x1^beta*c12", "alpha*x2*c22"),2,2)
+sabr <- setModel(drift=drift_sabr, diffusion=diff_sabr, state.var=c("x1","x2"))
+X_sabr <- simulate(sabr, true.parameter=list(alpha=0.1,beta=-0.1, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(100,0.5))
+plot(X_sabr) #,plot.type="single", col=c("red","blue") <- add this for a laugh
+```
+
+Now the qMLE bit...
+```{r}
+n <- 750
+sabr_samp <- setSampling(Terminal = n^(1/3), n=n)
+yuima_sabr <- setYuima(model=sabr, sampling = sabr_samp)
+set.seed(123)
+yuima_sabr <- simulate(sabr, true.parameter=list(alpha=0.1,beta=-0.1, c11=A[1,1], c12=A[1,2], c22=A[2,2]))
+param.init <- list(alpha=0.1,beta=0.01, c11=A[1,1], c12=A[1,2], c22=A[2,2])
+# +- 1% on the covariance matrix or it moans at you
+low.par <- list(alpha=0.0,beta=-1, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
+upp.par <- list(alpha=1.0,beta=1.0, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
+mle_sabr <- qmle(yuima_sabr, start = param.init, lower = low.par, upper = upp.par)
+summary(mle_sabr)
+```
+Well also as hilarious as mine in Excel! beta started at 0, 
+
+```{r}
+logLik(mle_sabr)
+```
+... there you have it. Even R predicts a stupid MLE! 
+The parameters seem to be just what the guesses are. That behaviour also doesnt seem to affect the MLE thats it gives out. If we set the true $\beta = -0.1$, and guess it as 0, it comes back as 0, for example.
+
+I dont have time to dig into this a whole heap right now, but im curious as to why it behaves that way, but working out whether its a R thing, a YUIMA thing, or the probable 'user error', im not sure. 
+
+_
