@@ -1,10 +1,11 @@
 ---
-title: "R Notebook"
+title: "CKLS 1D - Sim.DiffProc"
+author: "R. Dance"
 output:
-  html_document:
-    df_print: paged
-  html_notebook: default
-  pdf_document: default
+  html_notebook:
+    toc: yes
+  pdf_document:
+    toc: yes
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
@@ -22,30 +23,35 @@ This chunk is the CKLS SDE with some initial conditions in it!
 
 SET UP AS AN OU for a match to my Excel doc... the original parameters from the website are commented out next to the variables for the OU. 
 
+CKLS:
+
+$dX_t = (\theta_1 +\theta_2X_t)dt + \theta_3X_t^{\theta_4}dW_t$ 
+
+where $X_0=0.2$, and $\theta_1=a0 = 0.01$, $\theta_2 = b0 = -0.1$, $\theta_3 = s0 = 0.1$ and $\theta_4 = g0 = 0$. 
 ```{r}
 library(Sim.DiffProc)
-set.seed(12345, kind="L'Ecuyer-CMRG") #I dont know what this method is ?! 
+set.seed(12345, kind="L'Ecuyer-CMRG")
 a0 <- 0.01 #1
-b0 <- -0.1 #2
+b0 <- -0.1 #2 #was -0.01
 s0 <- 0.1 #0.5
 g0 <- 0 #0.3
-
-f <- expression( (a0+b0*x) )
-g <- expression(s0*x^g0)
-sim <- snssde1d(drift=f,diffusion=g,x0=2,N=10^3,Dt=10^-3)
+# I think this is simulated data
+f <- expression( (a0 + b0*x) )
+g <- expression(s0 * x^g0)
+sim <- snssde1d(drift=f, diffusion=g, x0=0.1, N=10^3, Dt=10^-3)
 mydata <- sim$X
-
+# This is the model
 fx <- expression( theta[1]+theta[2]*x ) ## drift coefficient of model
-gx <- expression( theta[3]*x^0 ) ## diffusion coefficient of model 
+gx <- expression( theta[3]*x^theta[4] ) ## diffusion coefficient of model
 
-fitmod <- fitsde(data = mydata, drift = fx, diffusion = gx, start = list(theta1=1, theta2=1, theta3=1),pmle="euler")
-fitmod
+fitmod <- fitsde(data = mydata, drift = fx, diffusion = gx, start = list(theta1=0.05, theta2=0.05, theta3=0.05,theta4=0),pmle="euler")
+plot(sim)
 ```
 ```{r}
-coef(fitmod)
+coef(fitmod) 
 ```
 ```{r}
-summary(fitmod)
+summary(fitmod) 
 ```
 So this gives a log likelihood (divide this by -2), which is a half decent match to the Excel, HOWEVER, the parameters are wildly off!?! Look at the theta1 and theta2, they are way out, but the standard errors are also huge?? 
 
@@ -58,7 +64,8 @@ Log Likelihood....
 ```{r}
 logLik(fitmod)
 ```
-Not too shabby as I got 4300 in Excel, but why are the parmeters so bad?! 
+Not too shabby as I got 4300 in Excel, but why are the parameters so bad?! 
+
 I dont know what AIC (Akaike information criterion) or BIC (Bayesian information criterion) are in practice... 
 ```{r}
 AIC(fitmod)
@@ -70,6 +77,6 @@ Confidence Intervals... expecting this to be hilariously bad considering theta1 
 ```{r echo=TRUE}
 confint(fitmod,level=0.95)
 ```
-Again, the theta3, which is my sigma, is fine. The theta2 isnt so bad here - its comparing -0.1 to 0.7 which although bad isnt as bad as theta1, which is wildly out. ANY IDEAS?! 
+Again, the theta3, which is my sigma, is fine. The theta2 isn't so bad here - its comparing -0.1 to 0.7 which although bad isn't as bad as theta1, which is wildly out. ANY IDEAS?! 
 
 _

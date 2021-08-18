@@ -7,7 +7,7 @@ library(yuima)
 mod1 <- setModel(drift = "-3*x", diffusion = "1/(1+x^2+t)", solve.variable = c("x"))
 # We may omit the solve.variable; then the default variable x is used
 mod1 <- setModel(drift = "-3*x", diffusion = "1/(1+x^2+t)")
-# Look at the model structure by
+# Look at the model structure by...
 str(mod1)
 
 set.seed(123)

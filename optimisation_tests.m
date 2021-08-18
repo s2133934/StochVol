@@ -2,12 +2,13 @@
 clear all; clc
 
 % fun = @(x)100*(x(2) - x(1)^2)^2 + (1 - x(1))^2;
-f = @(x,a)100*(x(2) - x(1)^2)^2 + (a-x(1))^2;
+f = @(x,a)100*(x(2) - x(1)^2)^2 + (a-x(1))^2; 
 t0 = [-1,1.9];
 a=3;
 fun = @(x)f(x,a);
 options = optimset('PlotFcns',@optimplotfval);
 [x,fval] = fminsearch(fun,t0,options)
+
 %%
 %%% Generate path:
 %generate timebase
@@ -57,6 +58,17 @@ newer_call = multiplying(5,10)
 
 mle_val = ckls_mle(X, 0.01,-0.1,0,0.1,0.001)
 
+f = @(x,a,b,g,s,dt)ckls_mle; 
+t0 = [-1,1.9];
+a=0.01;
+b=-0.1;
+g=0;
+s=0.1;
+
+fun = @(x)f(x,a);
+options = optimset('PlotFcns',@optimplotfval);
+[x,fval] = fminsearch(fun,t0,options)
+
 function res = ckls_mle(X,alpha, beta, gammma, sigma, dt)
 N=length(X);
 res=0;
@@ -72,4 +84,5 @@ end
 function res = multiplying(a,b)
 res = a*b;
 end
+
 
