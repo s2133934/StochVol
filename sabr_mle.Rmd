@@ -24,7 +24,7 @@ Saved in files "YUIMA_Stefano_Iacus.pdf"
 ```{r}
 library(yuima)
 ```
-### 1D Unparametrised SDE
+## 1D Unparametrised SDE
 A simple 1D SDE model for starters with numerical coefficients: 
  $dX_t = -3X_t dt + \frac{1}{1+X_t^2}$
 ```{r message=FALSE, warning=FALSE}
@@ -41,7 +41,7 @@ Summary of X:
 ```{r}
 X
 ```
-### Parametrised model
+## Parametrised model
 This time the model has parameters, $\theta$ and $\gamma$:
 $dX_t = -\theta X_t dt  + \frac{1}{1+X_t^\gamma} dW_t$
 
@@ -53,7 +53,7 @@ set.seed(123)
 plot(simulate(mod2,true.parameter =list(theta=1,gamma=3)))
 ```
 
-### Parametrised 1D SDE model, with QMLE
+## Parametrised 1D SDE model, with QMLE
 So we want to recover our parameter estimates from their true values.
 $dX_t = -\theta_2X_t dt + \theta_1dW_t$
 
@@ -76,7 +76,7 @@ summary(mle1)
 So we got 0.3 which is pretty close, and 0.28 which is not, but it *is* within the standard error.
 
 
-### 2D parametric Model with qMLE (2-dimensional diffusions with 3 noises)
+## 2D parametric Model with qMLE (2-dimensional diffusions with 3 noises)
 $dX_t^{(1)} = -\theta_2X_t^{(1)}*dt + dW_t^{(1)} + X_t^{(2)}*dW_t^{(3)}$
 $dX_t^{(2)} = -(X_t^1 + \theta_1 X_t^{(2)})dt + X_t^1dW_t^{(1)} + \theta_2dW_t^{(2)}$
 
@@ -102,17 +102,16 @@ summary(mle_mod3)
 ```
 Why have I got a third parameter? Why is there two theta2?!?!? 
 
-### Heston from the YUIMA book (it has correlation done properly, added qMLE)
+## Heston from the YUIMA book (it has correlation done properly, added qMLE)
 $dX_t^{(1)} = \mu X_t^{(1)}dt + \sqrt{X_t^{(2)}}X_t^{(1)}dW_t^{(1)}$
 
 $dX_t^{(2)} = k(\theta - X_t^{(2)})dt + \epsilon\sqrt{X_t^{(2)}}dW_t^{(2)}$
 
-where the brownians are correlated by some $\rho$ and lets say that we want to use two independent brownians $B_t^{(1)}$ and $B_t^{(2)}$
+where the Brownians are correlated by some $\rho$ and lets say that we want to use two independent brownians $B_t^{(1)}$ and $B_t^{(2)}$
 In order to do this, we need to transform them Cholesky decomposition (Colin, I used a package here!).
 
 The joint distribution of these things (Y) wants to be bivariate normal with correlation matrix $\Sigma$ s.t. $Y\sim N(0,\Sigma)$. So we use Cholesky to find such a matrix that $A^TA=\Sigma$. Then if Z is the standard multivariate normal, then $AZ \sim N(0,\Sigma)$ in the same way as we change brownians to be $\sqrt{dt}.N(0,1)$ all the time. So if we take the correlation matrix, and get the Cholesky decomp of it to get A, we can transform (multiply in normal speak!) the original diffusion matrix so that it works with independent Brownians.
 
-So the matrix form of the model as it stands is BLAH.
 ```{r}
 rho = 0.7
 Sigma <- matrix(c(1.0, rho, rho, 1.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
@@ -122,26 +121,26 @@ A
 ```{r}
 crossprod(A) # check to see if we get our input back
 ```
-So now we rewrite, but multiply the diffusions by the matrix A... 
+So now we rewrite, but multiply the diffusions by the matrix A to get our correlation as per Cholesky... 
 ```{r}
 set.seed(123)
 drift_heston <- c("mu*x1", "kappa*(theta-x2)")
 diff_heston <- matrix(c("c11*sqrt(x2)*x1", "0", "c12*sqrt(x2)*x1", "c22*epsilon*sqrt(x2)"),2,2)
 heston <- setModel(drift=drift_heston, diffusion=diff_heston, state.var=c("x1","x2"))
-X_heston <- simulate(heston, true.par=list(theta=0.5, mu=1.2, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(100,0.5))
+X_heston <- simulate(heston, true.par=list(theta=0.1, mu=0.12, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(0.1,0.05))
 plot(X_heston) #,plot.type="single", col=c("red","blue") <- add this for a laugh
 ```
-Now the QMLE bit...
+Now the QMLE bit for our Heston model...
 ```{r}
 n <- 750
 heston_samp <- setSampling(Terminal = n^(1/3), n=n)
 yuima_heston <- setYuima(model=heston, sampling = heston_samp)
 set.seed(123)
-yuima_heston <- simulate(heston, true.parameter = list(theta=0.5, mu=1.2, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2]))
-param.init <- list(theta=0.5, mu=1.2, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2])
+yuima_heston <- simulate(heston, true.parameter = list(theta=0.1, mu=0.12, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2]))
+param.init <- list(theta=0.5, mu=0.12, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2])
 # +- 1%
-low.par <- list(theta=0.0, mu=0, kappa=0,epsilon=0, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
-upp.par <- list(theta=2, mu=3, kappa=5,epsilon=1, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
+low.par <- list(theta=0, mu=0, kappa=0,epsilon=0, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
+upp.par <- list(theta=1, mu=1, kappa=5,epsilon=1, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
 mle_heston <- qmle(yuima_heston, start = param.init, lower = low.par, upper = upp.par)
 summary(mle_heston)
 ```
@@ -150,9 +149,9 @@ summary(mle_heston)
 logLik(mle_heston)
 ```
 
-Well that's hilarious. c22 is a bit off?? The c12 shows the correlation coefficient well, c11 hasnt changed. The parameters it gives are just the initial starting values for some reason?????? How do I know its actually doing anything with the parameter values I give it?
+Well that's looking asss suspect as my Python one. Parameter c22 is a bit off? The c12 shows the correlation coefficient well, c11 hasnt changed either. The parameters it gives are just the initial starting values (tested a few different ones). So how do I know its actually doing anything with the parameter values I give it? 
 
-### SABR...putting it all together
+### SABR...(modified heston from above)
 
 $dX_t^{(1)} = X_t^{(2)} X_t^{(1)\beta}dW_t^{(1)}$
 
@@ -201,13 +200,13 @@ Well also as hilarious as mine in Excel! beta started at 0,
 ```{r}
 logLik(mle_sabr)
 ```
-... there you have it. Even R predicts a stupid MLE! 
+... there you have it. Even R predicts a pretty wild MLE.
 
 The parameters seem to be just what the guesses are. That behaviour also doesnt seem to affect the MLE thats it gives out. If we set the true $\beta = -0.1$, and guess it as 0, it comes back as 0, for example.
 
 I dont have time to dig into this a whole heap right now, but im curious as to why it behaves that way, but working out whether its a R thing, a YUIMA thing, or the probable 'user error', im not sure. 
 
-### Colins email - page 87 of the YUIMA DOCS 
+## Page 87 of the YUIMA DOCS (colins email) 
 $dXt^e = - drift.matrix * Xt^e * dt + diff.matrix * dWt$
 ```{r}
 diff.matrix <- matrix(c("theta1.1","theta1.2", "1", "1"), 2, 2)
@@ -250,14 +249,12 @@ upper=list(theta1.1=4,theta1.2=4,theta2.1=4,theta2.2=4), method="L-BFGS-B")
 )
 opt2@coef
 summary(opt2)
-
-
 ```
-### SABR part 2
+### SABR part 2 (pg81-2 of docs applied to SABR)
 Applying the above to SABR
 
 ```{r}
-rho = 0.7
+rho = -0.7
 Sigma <- matrix(c(1.0, rho, rho, 1.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
 A <- chol(Sigma) # the decomposition
 
@@ -286,15 +283,17 @@ summary(opt2)
 
 ```
 ```{r}
-opt2@coef
+opt2
 ```
 
 ```{r}
 logLik(opt2)
 ```
-### Page 81-2 YUIMA DOCS
+Still consistent with this super large negative result.
 
-A different approach to putting in a 2D model into YUIMA. ITs in the poisson.random.sampling method section, but its of the SABR type.
+## Page 81-2 YUIMA DOCS
+(this is where we got wires crossed with docs and book so this is an extra)
+A different approach to putting in a 2D model into YUIMA. Its in the poisson.random.sampling method section, but its of the SABR type. Manual classification of the diffusion matrix, so it skips the Cholesky decomp calculation done for previous examples.
 
 $dX_t^{(2)} = X_t^{(2)}(1+t) dW_t^{(2)}$ (book)
 
@@ -308,47 +307,50 @@ The code from pg 81-82 as it is...(with added plot)
 diff.coef.1 <- function(t, x1=0, x2) x2*(1+t)
 diff.coef.2 <- function(t, x1, x2=0) x1*sqrt(1+t^2)
 cor.rho <- 0.7 #function(t, x1=0, x2=0) sqrt((1+cos(x1*x2))/2)
+# Manual Cholesky matrix: 
 diff.coef.matrix <- matrix(c("diff.coef.1(t,x1,x2)","diff.coef.2(t,x1,x2)*cor.rho", "", "diff.coef.2(t,x1,x2)*sqrt(1-cor.rho^2)"),2,2)
-cor.mod <- setModel(drift=c("",""), diffusion=diff.coef.matrix, solve.variable=c("x1", "x2"), xinit=c(3,2))
+cor.mod <- setModel(drift=c("",""), diffusion=diff.coef.matrix, solve.variable=c("x1", "x2"))
 set.seed(111)
-## We first simulate the two dimensional diffusion model
+
+## Simulate & plot the two dimensional diffusion model
 yuima.samp <- setSampling(Terminal=1, n=1200)
 yuima <- setYuima(model=cor.mod, sampling=yuima.samp)
-yuima.sim <- simulate(yuima)
-plot(yuima.sim)
+yuima <- simulate(yuima, xinit=c(3,2)) 
+plot(yuima)
 ```
-Now for SABR ....
+### Applied to SABR (docs pg81-2)
+Answer looks sensible, I dont think I can apply an MLE here as there are no parameters? So applying this to SABR and adding an MLE... 
 ```{r}
 # Set for SABR
-library(yuima)
-## Set a model
-diff.coef.1 <- function(x1, x2, beta=1) { 
-  ret <- (x2 * x1^(beta)) 
-  return(ret) 
-}
-diff.coef.2 <- function(x1, x2, alpha=1) alpha*x2
+library(yuima) 
 cor.rho <- 0.7 
-diff.coef.matrix <- matrix(c("diff.coef.1(x1, x2, beta)", "diff.coef.2(x1, x2, alpha)*cor.rho", "", "diff.coef.2(x1, x2, alpha)*sqrt(1-cor.rho^2)"),2,2)
-cor.model <- setModel(drift=c("",""), diffusion=diff.coef.matrix, solve.variable=c("x1", "x2"), xinit=c(0.1,0.1))
-set.seed(111)
+## Set a model
+diff.coef.1 <- function(x1, x2,alpha, beta=1) x2 * x1^(beta)
+diff.coef.2 <- function(x1, x2, alpha, beta) alpha*x2
+diff.coef.matrix <- matrix(c("diff.coef.1(x1, x2, alpha, beta)", "diff.coef.2(x1, x2, alpha, beta)*cor.rho", "", "diff.coef.2(x1, x2, alpha, beta)*sqrt(1-cor.rho^2)"),2,2)
+cor.model <- setModel(drift=c("",""), diffusion=diff.coef.matrix, solve.variable=c("x1", "x2"), state.variable=c("x1", "x2"), xinit=c(0.1,0.05))
+set.seed(111) 
 
 ## We first simulate the two dimensional diffusion model
 yuima.samp <- setSampling(Terminal=1, n=1200)
 yuima <- setYuima(model=cor.model, sampling=yuima.samp)
 # Plot processes...
-yuima.sim <- simulate(yuima)
+yuima.sim <- simulate(yuima )
 plot(yuima.sim)
-
 #qMLE
 yuima <- simulate(cor.model, true.parameter = list(alpha=0.1,beta=0.1) )
 param.init <- list(alpha=0.1, beta=-0.1)
 low.par <- list(alpha=0.0, beta=-0.5)
 upp.par <- list(alpha=0.8, beta=0.5)
-mle <- qmle(yuima, start = param.init, lower = low.par, upper = upp.par) 
-summary(mle)
+mle <- qmle(yuima, start = param.init, lower = low.par, upper = upp.par, method="L-BFGS-B") 
+summary(mle) 
 ```
-### 3D example YUIMA BOOK pg 81-82
+Flat line on the volatility process - the value is initialised, and ive checked all I can for errors, the process just doesnt vary when it should. 
+MLE fails. Hours spent trying to find error - checked as much as I can think of, no luck. 
+Abandon ship?
 
+## 3D example YUIMA BOOK pg 81-82
+Three SDEs and a g(x) thrown into the second equation, and only 2 Wiener processes.
 
 ```{r}
 mu <- 0.1
@@ -372,12 +374,63 @@ f3 <- function(t, x1, x2, x3, rho, sig) {
 }
 diff.coef.matrix <- matrix(c("f1(t,x1,x2,x3)", "f2(t,x1,x2,x3,rho, sig) * g(t)", "f2(t,x1,x2,x3,rho,sig)", "0", "f3(t,x1,x2,x3,rho,sig)*g(t)", "f3(t,x1,x2,x3,rho,sig)"), 3, 2)
 
-sabr.mod <- setModel(drift = c("0", "mu*g(t)*x3", "mu*x3"), diffusion = diff.coef.matrix, state.variable = c("x1", "x2", "x3"), solve.variable = c("x1", "x2", "x3"))
+sabr.mod <- setModel(drift = c("0", "mu*g(t)*x3", "mu*x3"), diffusion = diff.coef.matrix, state.variable = c("x1", "x2", "x3"), solve.variable = c("x1", "x2", "x3"),xinit = c(0.1,0.1,0.1))
 str(sabr.mod@parameter)
 
-sabr.mod.sim <- simulate(sabr.mod, true.parameter = list(mu=0.1,sigma=0.2,rho=0.7))
+sabr.mod.sim <- simulate(sabr.mod, true.parameter = list(mu=0.1,sigma=0.2,rho=-0.7))
 plot(sabr.mod.sim)
 diff.coef.matrix
 ```
- 
+```{r}
+# Try adding an MLE here as per the heston book example ...
+sabr.mod.sampling <- setSampling(Terminal=1, n=1000)
+sabr.mod.yuima <- setYuima(model=sabr.mod, sampling = sabr.mod.sampling)
+set.seed(123)
+sabr.mod.yuima <- simulate(sabr.mod.yuima, xinit = list(0.1,0.1,0.1), true.parameter = list(mu=0.1,sigma=0.2,rho=-0.7))
+param.init <- list(mu=0.1,sigma=0.2,rho=-0.7)
+low.par <- list(mu=0.0,sigma=0.0,rho=-1)
+upp.par <- list(mu=1,sigma=1,rho=1)
+mle1 <- qmle(yuima, start = param.init, lower = low.par, upper = upp.par)
+summary(mle1)
+```
+### 3D model reduced to SABR
+Ok, so now a 3D model that gives some sort of output. I tried an MLE but it doesnt work, and im not sure how to handle t in g(t). So now lets make a copy and reduce it to be SABR...
+
+```{r}
+# Set correlation coefficient
+rho <- -0.7
+# Set diffusion coefficients for both processes
+f1 <- function(x1, x2,alpha, beta) {
+    ret <- x2 * x1^beta
+    return(ret)
+}
+f2 <- function(x1, x2, alpha, beta) {
+    ret <- alpha * x2
+    return(ret)
+}
+# Create diffusion coefficient matrix as per Cholesky so correlation is achieved
+diff.coef.matrix <- matrix(c("f1(x1, x2,alpha, beta)", "f2(x1, x2,alpha, beta) * rho", "0", "f2(x1, x2,alpha, beta)*sqrt(1-rho^2)"), 2, 2)
+# Set up model
+sabr.mod <- setModel(drift = c("", ""), diffusion = diff.coef.matrix, state.variable = c("x1", "x2"), solve.variable = c("x1", "x2"),xinit = c(0.1,0.1))
+str(sabr.mod@parameter)
+# Generate simulated data & plot
+sabr.mod.sim <- simulate(sabr.mod, true.parameter = list(alpha=0.1,beta=0.1))
+plot(sabr.mod.sim)
+# Set sampling, create yuima object, set seed, pass yuima object some simulated data
+sabr.mod.samp <- setSampling(Terminal=1, n=100)
+sabr.mod.yuima <- setYuima(model=sabr.mod, sampling=sabr.mod.samp)
+set.seed(123)
+sabr.mod.yuima <- simulate(sabr.mod, true.parameter = list(alpha=0.1,beta=0.1), xinit =c(0.05,0.05) )
+
+# Do a least squares estimate...
+sabr.mod.lse <- lse(sabr.mod.yuima, start = list(alpha=0.1, beta=-0.1), lower = list(alpha=0.0, beta=-0.5), upper = list(alpha=0.8, beta=0.5),method="L-BFGS-B")
+# Feed that output into the quasilog likelihood...
+sabr.mod.lse
+params=list(alpha = sabr.mod.lse[1],beta = sabr.mod.lse[2])
+quasilogl(sabr.mod.yuima,param=params, print=TRUE)
+
+# Do a qMLE: Bounds -0.5 <= beta <= 0.5, 0 < alpha <= 0.8 - seems sensible?
+sabr.mod.mle <- qmle(sabr.mod.yuima, start = list(alpha=0.1, beta=-0.1), lower = list(alpha=0.0, beta=-0.5), upper = list(alpha=0.8, beta=0.5),method="L-BFGS-B") 
+```
+So, the LSE and QUASILOGL work which is interesting, but are presumable not optimised - its just a quasilogl for the parameters I fed it. The qMLE doesnt work due to that last error. Ive scoured the books, and docs, and all of the examples ive followed to the letter aside from the actual models and im not seeing anything out of line. 
  
