@@ -141,7 +141,7 @@ param.init <- list(theta=0.5, mu=0.12, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,
 # +- 1%
 low.par <- list(theta=0, mu=0, kappa=0,epsilon=0, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
 upp.par <- list(theta=1, mu=1, kappa=5,epsilon=1, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
-mle_heston <- qmle(yuima_heston, start = param.init, lower = low.par, upper = upp.par)
+mle_heston <- qmle(X_heston, start = param.init, lower = low.par, upper = upp.par)
 summary(mle_heston)
 ```
 
@@ -149,7 +149,42 @@ summary(mle_heston)
 logLik(mle_heston)
 ```
 
-Well that's looking asss suspect as my Python one. Parameter c22 is a bit off? The c12 shows the correlation coefficient well, c11 hasnt changed either. The parameters it gives are just the initial starting values (tested a few different ones). So how do I know its actually doing anything with the parameter values I give it? 
+Well that's looking as suspect as my Python one. Parameter c22 is a bit off? The c12 shows the correlation coefficient well, c11 hasnt changed either. The parameters it gives are just the initial starting values (tested a few different ones). So how do I know its actually doing anything with the parameter values I give it? 
+
+#### Colins email: his realisation of this!
+```{r}
+Sigma <- matrix(c(0.5, 0.7, 0.7, 2), 2, 2)
+C <- chol(Sigma)
+C
+## [,1] [,2]
+## [1,] 0.7071068 0.9899495
+## [2,] 0.0000000 1.0099505
+crossprod(C)
+## [,1] [,2]
+## [1,] 0.5 0.7
+## [2,] 0.7 2.0
+Sigma
+## [,1] [,2]
+## [1,] 0.5 0.7
+## [2,] 0.7 2.0
+set.seed(123)
+drift <- c("mu*x1", "kappa*(theta-x2)")
+diffusion <- matrix(c("c11*sqrt(x2)*x1", "0",
+"c12*sqrt(x2)*x1", "c22*epsilon*sqrt(x2)"),2,2)
+heston <- setModel(drift=drift, diffusion=diffusion,
+state.var=c("x1","x2"))
+X <- simulate(heston, true.par=list(theta=0.5, mu=1.2, kappa=2,
+epsilon=0.2, c11=C[1,1], c12=C[1,2], c22=C[2,2]),
+xinit=c(100,0.5))
+ 
+param.init <- list(theta=0.5, mu=0.5, kappa=0.5,epsilon=0.5,c11=0.5,c12=0.5,c22=0.5)
+low.par <- list(theta=0, mu=0, kappa=0,epsilon=0)
+upp.par <- list(theta=1, mu=1,kappa=1,epsilon=1)
+mle1 <- qmle(X, start = param.init)
+summary(mle1)
+
+```
+
 
 ### SABR...(modified heston from above)
 
@@ -192,7 +227,7 @@ param.init <- list(alpha=0.1,beta=0.01, c11=A[1,1], c12=A[1,2], c22=A[2,2])
 # +- 1% on the covariance matrix or it moans at you
 low.par <- list(alpha=0.0,beta=-1, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
 upp.par <- list(alpha=1.0,beta=1.0, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
-mle_sabr <- qmle(yuima_sabr, start = param.init, lower = low.par, upper = upp.par)
+mle_sabr <- qmle(X_sabr, start = param.init, lower = low.par, upper = upp.par)
 summary(mle_sabr)
 ```
 Well also as hilarious as mine in Excel! beta started at 0, 
@@ -276,7 +311,7 @@ param.init <- list(alpha=0.1,beta=0.01, c11=A[1,1], c12=A[1,2], c22=A[2,2])
 low.par <- list(alpha=0.0,beta=-1, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
 upp.par <- list(alpha=1.0,beta=1.0, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
 system.time(
-opt2 <- qmle(yuima_sabr, start = param.init,lower=low.par, upper = upp.par, method="L-BFGS-B")
+opt2 <- qmle(X_sabr, start = param.init,lower=low.par, upper = upp.par, method="L-BFGS-B")
 )
 opt2@coef
 summary(opt2)
@@ -342,7 +377,7 @@ yuima <- simulate(cor.model, true.parameter = list(alpha=0.1,beta=0.1) )
 param.init <- list(alpha=0.1, beta=-0.1)
 low.par <- list(alpha=0.0, beta=-0.5)
 upp.par <- list(alpha=0.8, beta=0.5)
-mle <- qmle(yuima, start = param.init, lower = low.par, upper = upp.par, method="L-BFGS-B") 
+mle <- qmle(yuima.sim, start = param.init, lower = low.par, upper = upp.par, method="L-BFGS-B") 
 summary(mle) 
 ```
 Flat line on the volatility process - the value is initialised, and ive checked all I can for errors, the process just doesnt vary when it should. 
@@ -390,7 +425,7 @@ sabr.mod.yuima <- simulate(sabr.mod.yuima, xinit = list(0.1,0.1,0.1), true.param
 param.init <- list(mu=0.1,sigma=0.2,rho=-0.7)
 low.par <- list(mu=0.0,sigma=0.0,rho=-1)
 upp.par <- list(mu=1,sigma=1,rho=1)
-mle1 <- qmle(yuima, start = param.init, lower = low.par, upper = upp.par)
+mle1 <- qmle(sabr.mod.sim, start = param.init, lower = low.par, upper = upp.par)
 summary(mle1)
 ```
 ### 3D model reduced to SABR
@@ -430,7 +465,7 @@ params=list(alpha = sabr.mod.lse[1],beta = sabr.mod.lse[2])
 quasilogl(sabr.mod.yuima,param=params, print=TRUE)
 
 # Do a qMLE: Bounds -0.5 <= beta <= 0.5, 0 < alpha <= 0.8 - seems sensible?
-sabr.mod.mle <- qmle(sabr.mod.yuima, start = list(alpha=0.1, beta=-0.1), lower = list(alpha=0.0, beta=-0.5), upper = list(alpha=0.8, beta=0.5),method="L-BFGS-B") 
+sabr.mod.mle <- qmle(sabr.mod.sim, start = list(alpha=0.1, beta=-0.1), lower = list(alpha=0.0, beta=-0.5), upper = list(alpha=0.8, beta=0.5),method="L-BFGS-B") 
 ```
 So, the LSE and QUASILOGL work which is interesting, but are presumable not optimised - its just a quasilogl for the parameters I fed it. The qMLE doesnt work due to that last error. Ive scoured the books, and docs, and all of the examples ive followed to the letter aside from the actual models and im not seeing anything out of line. 
  
