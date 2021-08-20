@@ -151,7 +151,8 @@ logLik(mle_heston)
 
 Well that's looking as suspect as my Python one. Parameter c22 is a bit off? The c12 shows the correlation coefficient well, c11 hasnt changed either. The parameters it gives are just the initial starting values (tested a few different ones). So how do I know its actually doing anything with the parameter values I give it? 
 
-#### Colins email: his realisation of this!
+#### Colins email: Heston
+
 ```{r}
 Sigma <- matrix(c(0.5, 0.7, 0.7, 2), 2, 2)
 C <- chol(Sigma)
@@ -175,14 +176,14 @@ heston <- setModel(drift=drift, diffusion=diffusion,
 state.var=c("x1","x2"))
 X <- simulate(heston, true.par=list(theta=0.5, mu=1.2, kappa=2,
 epsilon=0.2, c11=C[1,1], c12=C[1,2], c22=C[2,2]),
-xinit=c(100,0.5))
+xinit=c(10,0.1))
  
 param.init <- list(theta=0.5, mu=0.5, kappa=0.5,epsilon=0.5,c11=0.5,c12=0.5,c22=0.5)
 low.par <- list(theta=0, mu=0, kappa=0,epsilon=0)
 upp.par <- list(theta=1, mu=1,kappa=1,epsilon=1)
 mle1 <- qmle(X, start = param.init)
 summary(mle1)
-
+plot(X)
 ```
 
 
@@ -199,7 +200,7 @@ The joint distribution of these things (Y) wants to be bivariate normal with cor
 
 So the matrix form of the model as it stands is BLAH.
 ```{r}
-rho = 0.7
+rho = 0.2
 Sigma <- matrix(c(1.0, rho, rho, 1.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
 A <- chol(Sigma) # the decomposition
 A
@@ -214,6 +215,12 @@ diff_sabr <- matrix(c("x2*x1^beta*c11", "0", "x2*x1^beta*c12", "alpha*x2*c22"),2
 sabr <- setModel(drift=drift_sabr, diffusion=diff_sabr, state.var=c("x1","x2"))
 X_sabr <- simulate(sabr, true.parameter=list(alpha=0.1,beta=-0.1, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(0.1,0.01))
 plot(X_sabr) #,plot.type="single", col=c("red","blue") <- add this for a laugh
+```
+```{r}
+xt_R <- get.zoo.data(X_sabr)[[1]]
+write(xt_R,'xt_R.csv')
+vt_R <- get.zoo.data(X_sabr)[[2]]
+write(vt_R,'vt_R.csv')
 ```
 
 Now the qMLE bit...
@@ -230,12 +237,12 @@ upp.par <- list(alpha=1.0,beta=1.0, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]
 mle_sabr <- qmle(X_sabr, start = param.init, lower = low.par, upper = upp.par)
 summary(mle_sabr)
 ```
-Well also as hilarious as mine in Excel! beta started at 0, 
+Ok....
 
 ```{r}
 logLik(mle_sabr)
 ```
-... there you have it. Even R predicts a pretty wild MLE.
+... there you have it.
 
 The parameters seem to be just what the guesses are. That behaviour also doesnt seem to affect the MLE thats it gives out. If we set the true $\beta = -0.1$, and guess it as 0, it comes back as 0, for example.
 
@@ -324,7 +331,7 @@ opt2
 ```{r}
 logLik(opt2)
 ```
-Still consistent with this super large negative result.
+
 
 ## Page 81-2 YUIMA DOCS
 (this is where we got wires crossed with docs and book so this is an extra)
