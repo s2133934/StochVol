@@ -1,0 +1,46 @@
+---
+title: "OU MLE"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+library(Sim.DiffProc)
+```
+OU:
+$dX_t = k(\theta - X_t)dt + \sigma dW_t$
+
+```{r}
+set.seed(12345, kind="L'Ecuyer-CMRG")
+k0 <- 1 #1
+theta0 <- 0.1 #2 #was -0.01
+sigma0 <- 0.1 #0.5
+# I think this is simulated data
+f <- expression( k0*(theta0 - x) )
+g <- expression(sigma0)
+sim <- snssde1d(drift=f, diffusion=g, x0=0.1, N=10^3, Dt=10^-3)
+mydata <- sim$X
+# This is the model
+fx <- expression( theta[1]*(theta[2]-x) ) ## drift coefficient of model
+gx <- expression( theta[3] ) ## diffusion coefficient of model
+
+fitmod <- fitsde(data = mydata, drift = fx, diffusion = gx, start = list(theta1=1.5, theta2=0.15, theta3=0.05),pmle="euler")
+plot(sim)
+```
+```{r}
+fitmod
+```
+

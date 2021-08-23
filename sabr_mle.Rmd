@@ -343,6 +343,11 @@ recoveredRho
 ```
 Matches the previous model for the same parameters which is reassuring. Id be worried if it wasnt.
 
+```{r}
+toLatex(X_sabr)
+```
+
+
 ## Page 81-2 YUIMA DOCS
 (this is where we got wires crossed with docs and book so this is an extra)
 A different approach to putting in a 2D model into YUIMA. Its in the poisson.random.sampling method section, but its of the SABR type. Manual classification of the diffusion matrix, so it skips the Cholesky decomp calculation done for previous examples.
