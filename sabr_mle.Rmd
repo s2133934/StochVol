@@ -53,13 +53,13 @@ set.seed(123)
 plot(simulate(mod2,true.parameter =list(theta=1,gamma=3)))
 ```
 
-## Parametrised 1D SDE model, with QMLE
+## Parametrised 1D SDE model, with QMLE - Ornstein Uhlenbeck 1D results
 So we want to recover our parameter estimates from their true values.
-$dX_t = -\theta_2X_t dt + \theta_1dW_t$
+$dX_t = \theta_1(\theta_2 - X_t) dt + \theta_3dW_t$
 
 ```{r}
-diff.matrix <- matrix(c("theta1"), 1, 1) #so apparently dots are ok in names in R... weird.
-ymodel <- setModel(drift = c("(-1)*theta2*x"), diffusion = diff.matrix, time.variable = "t", state.variable = "x", solve.variable = "x")
+diff.matrix <- matrix(c("theta3"), 1, 1) #so apparently dots are ok in names in R... weird.
+ymodel <- setModel(drift = c("theta1*(theta2-x)"), diffusion = diff.matrix, time.variable = "t", state.variable = "x", solve.variable = "x")
 # here you can do plot(simulate(ymodel,true.parameter =list(theta=0.3,gamma=0.1))) to show specific paths at given input params.
 # ...this is where the qMLE things specific begin...
 n <-100
@@ -67,11 +67,13 @@ ysamp <- setSampling(Terminal = (n)^(1/3), n = n) #this expression seems rather 
 yuima <- setYuima(model = ymodel, sampling = ysamp) #yuima - name of package or a variable now?
 set.seed(123)
 #True values of parameters specified for simulation here, but stay unknown to yuima object?
-yuima <- simulate(yuima, xinit = 0.1, true.parameter = list(theta1 = 0.3, theta2 = 0.1))
+yuima <- simulate(yuima, xinit = 0.1, true.parameter = list(theta1 = 1.0, theta2 = 0.1, theta3=0.2))
 # now call qmle on yuima object
-mle1 <- qmle(yuima, start = list(theta1 = 0.05, theta2 = 0.05), lower = list(theta1=0.001, theta2=0.001), upper = list(theta1=0.5, theta2=0.5), method = "L-BFGS-B")
+mle1 <- qmle(yuima, start = list(theta1 = 0.05, theta2 = 0.05,theta3=0.05), lower = list(theta1=0.001, theta2=0.001,theta3=0.001), upper = list(theta1=5, theta2=1,theta3=1), method = "L-BFGS-B")
 #print result - can also use just coef(mle1)
 summary(mle1)
+plot(yuima)
+
 ```
 So we got 0.3 which is pretty close, and 0.28 which is not, but it *is* within the standard error.
 

@@ -27,7 +27,7 @@ $dX_t = k(\theta - X_t)dt + \sigma dW_t$
 set.seed(12345, kind="L'Ecuyer-CMRG")
 k0 <- 1 #1
 theta0 <- 0.1 #2 #was -0.01
-sigma0 <- 0.1 #0.5
+sigma0 <- 0.2 #0.5
 # I think this is simulated data
 f <- expression( k0*(theta0 - x) )
 g <- expression(sigma0)
@@ -37,7 +37,7 @@ mydata <- sim$X
 fx <- expression( theta[1]*(theta[2]-x) ) ## drift coefficient of model
 gx <- expression( theta[3] ) ## diffusion coefficient of model
 
-fitmod <- fitsde(data = mydata, drift = fx, diffusion = gx, start = list(theta1=1.5, theta2=0.15, theta3=0.05),pmle="euler")
+fitmod <- fitsde(data = mydata, drift = fx, diffusion = gx, start = list(theta1=1, theta2=0.1, theta3=0.2),pmle="euler")
 plot(sim)
 ```
 ```{r}
