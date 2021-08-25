@@ -129,7 +129,7 @@ set.seed(123)
 drift_heston <- c("mu*x1", "kappa*(theta-x2)")
 diff_heston <- matrix(c("c11*sqrt(x2)*x1", "0", "c12*sqrt(x2)*x1", "c22*epsilon*sqrt(x2)"),2,2)
 heston <- setModel(drift=drift_heston, diffusion=diff_heston, state.var=c("x1","x2"))
-X_heston <- simulate(heston, true.par=list(theta=0.1, mu=0.12, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(0.1,0.05))
+X_heston <- simulate(heston, true.par=list(theta=0.1, mu=0.1, kappa=2,epsilon=0.1, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(0.1,0.1))
 plot(X_heston) #,plot.type="single", col=c("red","blue") <- add this for a laugh
 ```
 Now the QMLE bit for our Heston model...
@@ -138,13 +138,16 @@ n <- 750
 heston_samp <- setSampling(Terminal = n^(1/3), n=n)
 yuima_heston <- setYuima(model=heston, sampling = heston_samp)
 set.seed(123)
-yuima_heston <- simulate(heston, true.parameter = list(theta=0.1, mu=0.12, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2]))
+yuima_heston <- simulate(heston, true.parameter = list(theta=0.1, mu=0.1, kappa=2,epsilon=0.1, c11=A[1,1], c12=A[1,2], c22=A[2,2]))
 param.init <- list(theta=0.5, mu=0.12, kappa=2,epsilon=0.2, c11=A[1,1], c12=A[1,2], c22=A[2,2])
 # +- 1%
 low.par <- list(theta=0, mu=0, kappa=0,epsilon=0, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
 upp.par <- list(theta=1, mu=1, kappa=5,epsilon=1, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
 mle_heston <- qmle(X_heston, start = param.init, lower = low.par, upper = upp.par)
 summary(mle_heston)
+```
+```{r}
+A[2,2]
 ```
 
 ```{r}
