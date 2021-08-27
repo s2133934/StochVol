@@ -116,7 +116,7 @@ The joint distribution of these things (Y) wants to be bivariate normal with cor
 
 ```{r}
 rho = 0.7
-Sigma <- matrix(c(1.0, rho, rho, 1.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
+Sigma <- matrix(c(0.5, rho, rho, 2.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
 A <- chol(Sigma) # the decomposition
 A
 ```
@@ -147,7 +147,13 @@ mle_heston <- qmle(X_heston, start = param.init, lower = low.par, upper = upp.pa
 summary(mle_heston)
 ```
 ```{r}
-A[2,2]
+recoveredSigma <- matrix(c(1.01,0, 0.693, 0.7070014), 2, 2)
+recoveredRho <- crossprod(recoveredSigma)
+recoveredRho
+A
+alphabets <- matrix(c(1,2, 3, 4), 2, 2)
+alphabets
+alphabets[2,1]
 ```
 
 ```{r}
@@ -206,7 +212,7 @@ The joint distribution of these things (Y) wants to be bivariate normal with cor
 So the matrix form of the model as it stands is BLAH.
 ```{r}
 rho = 0.2
-Sigma <- matrix(c(1.0, rho, rho, 1.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
+Sigma <- matrix(c(0.5, rho, rho, 2.0), 2, 2) #I used own values from correlated wieners in python here so S_11 = S_22 = 1 ??
 A <- chol(Sigma) # the decomposition
 A
 ```
@@ -218,7 +224,7 @@ set.seed(123)
 drift_sabr <- c("0", "0")
 diff_sabr <- matrix(c("x2*x1^beta*c11", "0", "x2*x1^beta*c12", "alpha*x2*c22"),2,2)
 sabr <- setModel(drift=drift_sabr, diffusion=diff_sabr, state.var=c("x1","x2"))
-X_sabr <- simulate(sabr, true.parameter=list(alpha=0.1,beta=1, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(0.1,0.1))
+X_sabr <- simulate(sabr, true.parameter=list(alpha=0.1,beta=2, c11=A[1,1], c12=A[1,2], c22=A[2,2]), xinit=c(0.1,0.1))
 plot(X_sabr) #,plot.type="single", col=c("red","blue") <- add this for a laugh
 ```
 ```{r}
@@ -230,22 +236,25 @@ write(vt_R,'vt_R.csv')
 
 Now the qMLE bit...
 ```{r}
-n <- 750
-sabr_samp <- setSampling(Terminal = n^(1/3), n=n)
-yuima_sabr <- setYuima(model=sabr, sampling = sabr_samp)
-set.seed(123)
-yuima_sabr <- simulate(sabr, true.parameter=list(alpha=0.1,beta=1, c11=A[1,1], c12=A[1,2], c22=A[2,2]))
-param.init <- list(alpha=0.08,beta=0.4, c11=A[1,1], c12=A[1,2], c22=A[2,2])
+# n <- 750
+# sabr_samp <- setSampling(Terminal = n^(1/3), n=n)
+# yuima_sabr <- setYuima(model=sabr, sampling = sabr_samp)
+# set.seed(123)
+# yuima_sabr <- simulate(sabr, true.parameter=list(alpha=0.1,beta=1, c11=A[1,1], c12=A[1,2], c22=A[2,2]))
+param.init <- list(alpha=0.1,beta=2, c11=A[1,1], c12=A[1,2], c22=A[2,2])
 # +- 1% on the covariance matrix or it moans at you
-low.par <- list(alpha=0.0,beta=-1, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
-upp.par <- list(alpha=1.0,beta=1.0, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
+low.par <- list(alpha=0.0,beta=-3, c11=A[1,1]*0.99, c12=A[1,2]*0.99, c22=A[2,2]*0.99)
+upp.par <- list(alpha=1.0,beta=3, c11=A[1,1]*1.01, c12=A[1,2]*1.01, c22=A[2,2]*1.01)
 mle_sabr <- qmle(X_sabr, start = param.init, lower = low.par, upper = upp.par)
 summary(mle_sabr)
 ```
 ```{r}
-recoveredSigma <- matrix(c(0.99, 0.198, 0, 0.9699979), 2, 2)
+recoveredSigma <- matrix(c(0.714778,0, 0.2800143, 1.3852821), 2, 2)
 recoveredRho <- crossprod(recoveredSigma)
 recoveredRho
+alphabets <- matrix(c(1,2, 3, 4), 2, 2)
+alphabets
+alphabets[2,1]
 ```
 
 Ok....
